@@ -33,7 +33,7 @@ class MaskTextDataset(torch.utils.data.Dataset):
         # ---------text to token------------
         text_file = self.text_path[idx]
         dic = eval(open(text_file.replace(
-            '..', '/home/tione/notebook/multimodal/')).read())
+            '..', '../../../')).read())
         asr = ((dic['video_asr']).replace('|', ','))
         ocr = ((dic['video_ocr']).replace('|', ','))
         data['asr'] = asr
@@ -84,7 +84,7 @@ class TextDataset(torch.utils.data.Dataset):
         # ---------text to token------------
         text_file = self.text_path[idx]
         dic = eval(open(text_file.replace(
-            '..', '/home/tione/notebook/multimodal/')).read())
+            '..', '../../../')).read())
         asr = ((dic['video_asr']).replace('|', ','))
         ocr = ((dic['video_ocr']).replace('|', ','))
         data['asr'] = asr

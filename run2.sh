@@ -33,6 +33,10 @@ if [ ! -d "${CODE_ROOT}" ]; then
   exit 1
 fi
 # DATASET ROOT
+echo ["Link dataset"]
+DATASET_ROOT=/home/tione/notebook/algo-2021/dataset/
+ln -s ${DATASET_ROOT} ${CODE_ROOT}
+
 DATASET_ROOT=${CODE_ROOT}/dataset
 if [ ! -d "${DATASET_ROOT}" ]; then
   echo "DATASET_ROOT= ${DATASET_ROOT}, not exists, exit"
