@@ -102,7 +102,34 @@ python -m ipykernel install --user --name ${CONDA_NEW_ENV} --display-name "TAAC2
 
 # #################### install python libraries
 pip install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
-pip install transformers opencv-python
+
+# bert
+echo "[Bert install]"
+pip install transformers
+
+# x3d
+# x3d environment
+echo "[X3d install]"
+pip install 'git+https://github.com/facebookresearch/fvcore'
+pip install simplejson
+conda install av -c conda-forge
+pip install -U iopath
+pip install psutil
+pip install opencv-python
+pip install tensorboard
+conda install -c conda-forge moviepy
+pip install pytorchvideo
+pip install -U cython
+python -m pip install -e ./utils/detectron2
+# pyslowfast
+export PYTHONPATH=/home/tione/notebook/algo-2021-jbtjjsw/SlowFast/slowfast:$PYTHONPATH
+cd ./utils/slowFast
+python setup.py build develop
+cd -
+
+# nextvlad
+pip install timm
+
 
 # check tensorflow GPU
 # python -c "import torch; print(torch.__version__)"
