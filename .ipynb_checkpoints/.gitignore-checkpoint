@@ -74,7 +74,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+.ipynb_checkpoints/
 
 # pyenv
 .python-version
@@ -103,5 +103,3 @@ ENV/
 # mkdocs documentation
 /site
 
-# mypy
-.mypy_cache/
