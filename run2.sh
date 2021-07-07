@@ -94,13 +94,26 @@ fi
 # #################### execute according to TYPE
 ########## train
 if [ "$TYPE" = "train" ]; then
-    cd src/text_predict/ocr_bert_base
-    time python ocr_classifier.py
+#     cd src/text_predict/ocr_bert_base
+#     time python ocr_classifier.py
+#     cd -
+    cd src/text_predict/ocr_bert_class_train
+#     time python train.py
+    cd -
+    
+    cd src/weight_fusion
+    time python train.py
     cd -
   exit 0
-fi
-########## test
-# elif [ "$TYPE" = "test" ]; then
 
-#   exit 0
+########## test
+elif [ "$TYPE" = "test" ]; then
+    cd src/text_predict/ocr_bert_class_train
+    time python predict.py
+    cd -
+    cd src/weight_fusion
+    time python predict.py
+    cd -
+  exit 0
 # ######### text predict
+fi

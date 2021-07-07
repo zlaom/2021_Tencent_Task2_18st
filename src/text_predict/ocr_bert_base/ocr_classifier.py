@@ -134,7 +134,6 @@ def train(run_i, model, loss_fn, config,  train_loader, val_loader, root_path):
                 num+=1
                 loss.backward()
                 optimizer.step()
-                break
         gap = evaluate(config, val_loader, tokenizer, model)
         with open(root_path+'res.csv', 'a+') as out:
             writer = csv.writer(out)
@@ -154,7 +153,6 @@ def train(run_i, model, loss_fn, config,  train_loader, val_loader, root_path):
         if(count>3):
             print("overfit stop train!")
             break
-        break
 
 # pre process
 def predict(config, model,checkpoint,predict_loader,reslut_path):
