@@ -92,15 +92,18 @@ else
 fi
 
 # #################### execute according to TYPE
+
 ########## train
 if [ "$TYPE" = "train" ]; then
-#     cd src/text_predict/ocr_bert_base
-#     time python ocr_classifier.py
-#     cd -
-    cd src/text_predict/ocr_bert_class_train
-#     time python train.py
+    ### train base bert
+    cd src/text_predict/ocr_bert_base
+    time python ocr_classifier.py
     cd -
-    
+    ### class train bert
+    cd src/text_predict/ocr_bert_class_train
+    time python train.py
+    cd -
+    ### weight fusion train
     cd src/weight_fusion
     time python train.py
     cd -
@@ -108,12 +111,22 @@ if [ "$TYPE" = "train" ]; then
 
 ########## test
 elif [ "$TYPE" = "test" ]; then
+    ### class train bert predict
     cd src/text_predict/ocr_bert_class_train
     time python predict.py
     cd -
+    ### weight fusion predict
     cd src/weight_fusion
     time python predict.py
     cd -
   exit 0
-# ######### text predict
+  
+# ######### get featrue
+elif [ "$TYPE" = "featrue" ]; then
+    cd src/text_predict/ocr_bert_base
+    time python extraction_features.py
+    mkdir /home/tione/notebook/dataset/text
+    cp features/* /home/tione/notebook/dataset/text/
+    cd -
+  exit 0
 fi
