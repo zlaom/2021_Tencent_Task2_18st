@@ -52,6 +52,11 @@ if [ "${ACTION}" != "run" ]; then
   exit 0
 fi
 
+# #################### link dataset
+echo ["Link dataset"]
+DATASET_ROOT=/home/tione/notebook/algo-2021/dataset/
+ln -s ${DATASET_ROOT} ${CODE_ROOT}
+
 # #################### install system libraries
 if [ "${OS_ID}" == "ubuntu" ]; then
   echo "[Info] installing system libraries in ${OS_ID}"
@@ -102,6 +107,7 @@ python -m ipykernel install --user --name ${CONDA_NEW_ENV} --display-name "TAAC2
 
 # #################### install python libraries
 pip install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+<<<<<<< HEAD:init_.sh
 
 # bert
 echo "[Bert install]"
@@ -130,6 +136,9 @@ cd -
 # nextvlad
 pip install timm
 
+=======
+pip install transformers opencv-python
+>>>>>>> 414386a23b44dac0ee97178f5b62cf17e066f22e:init.sh
 
 # check tensorflow GPU
 # python -c "import torch; print(torch.__version__)"
