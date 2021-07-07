@@ -13,14 +13,13 @@ from tqdm import tqdm
 from PIL import Image
 import torchvision.transforms as T
 
-from model import VideoAudio 
+from src.models.nextvlad.nextvlad import VideoAudio 
 from utils.gap_score import get_tag_id_dict, parse_input_json, parse_gt_json, calculate_gap 
 
-# ckpt = './checkpoint/m_eval_from_train/0_0.5879.pth'
 use_ckpt = False
 ckpt = './checkpoint/dual_model/1_0.7424.pth'
-name = 'videoaudio2'
-device_id = 'cuda:1'
+name = 'nextvlad'
+device_id = 'cuda:0'
 
 use_scheduler = True
 val_batch_size = 100
@@ -93,7 +92,7 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.video_path)
 
 # video path file
-datafile_dir = '/home/tione/notebook/datafile/baseline/'
+datafile_dir = './utils/datafile/baseline/'
 train_datafile = datafile_dir + 'train.txt'
 with open(train_datafile, 'r') as f:
     audio_train = f.read().splitlines() # path_file是一个list
@@ -104,7 +103,7 @@ with open(val_datafile, 'r') as f:
     audio_val = f.read().splitlines() # path_file是一个list
 
     
-datafile_dir = '/home/tione/notebook/datafile/features/'
+datafile_dir = './utils/datafile/features/'
 train_datafile = datafile_dir + 'train.txt'
 with open(train_datafile, 'r') as f:
     video_train = f.read().splitlines() # path_file是一个list
@@ -183,7 +182,7 @@ device = torch.device(device_id) if torch.cuda.is_available() else torch.device(
 print(device)
 
 # model
-model = VideoAudio(video_dim=768, audio_dim=128, video_max_frames=300, audio_max_frames=80, video_cluster=128, audio_cluster=32, video_lamb=8, audio_lamb=4, groups=8)
+model = VideoAudio(video_dim=768, audio_dim=128, video_max_frames=300, audio_max_frames=80, video_cluster=128, audio_cluster=32, video_lamb=8, audio_lamb=4, groups=8, classify=True)
 if use_ckpt:
     model.load_state_dict(torch.load(ckpt))
 
@@ -200,6 +199,7 @@ optimizer = AdamW(model.parameters(), lr=lr)
 if use_scheduler:
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
 
+count = 0
 max_gap = 0
 save_path = None
 for epoch in range(max_epoch):
@@ -227,11 +227,16 @@ for epoch in range(max_epoch):
                 scheduler.step()
 
         # evaluate and save ckpt
-        if idx_b % 30 == 0:
+        if idx_b % 20 == 0:
             gap = evaluate(val_loader, model, epoch, device)
             if gap > max_gap:
                 max_gap = gap
                 if save_path:
                     os.remove(save_path)
-                save_path = './checkpoint/' + name + '/' + str(epoch) + "_{:.4f}.pth".format(gap)
+                save_path = './checkpoint/' + "nextvlad.pth"
                 torch.save(model.state_dict(), save_path)
+                count = 0
+                
+    if count > 3:
+        break
+    count += 1

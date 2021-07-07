@@ -102,3 +102,7 @@ ENV/
 # mkdocs documentation
 /site
 checkpoints/
+<<<<<<< HEAD
+checkpoint/
+=======
+>>>>>>> 414386a23b44dac0ee97178f5b62cf17e066f22e
