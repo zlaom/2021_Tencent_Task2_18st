@@ -35,7 +35,9 @@ dataset
         - test
 ```
 
-下载路径为：http://vtrust.qicp.vip:45124/s/8g5RFBgTpsN7pEe
+特征下载路链接：http://vtrust.qicp.vip:45124/s/8g5RFBgTpsN7pEe
+
+备用链接：https://pan.baidu.com/s/1yiSiXruG-j7EWIX75vTjpA 提取码：6ylh
 
 请在根目录下运行如下代码
 `sudo chmod a+x ./run.sh && ./run.sh train`
