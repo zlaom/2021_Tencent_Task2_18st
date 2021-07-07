@@ -37,7 +37,6 @@ echo ["Link dataset"]
 DATASET_ROOT=/home/tione/notebook/algo-2021/dataset/
 ln -s ${DATASET_ROOT} ${CODE_ROOT}
 
-
 DATASET_ROOT=${CODE_ROOT}/dataset
 if [ ! -d "${DATASET_ROOT}" ]; then
   echo "DATASET_ROOT= ${DATASET_ROOT}, not exists, exit"
@@ -93,28 +92,169 @@ else
 fi
 
 # #################### execute according to TYPE
-########## train
+
 if [ "$TYPE" = "train" ]; then
-#     cd src/text_predict/ocr_bert_base
-#     time python ocr_classifier.py
-#     cd -
-    cd src/text_predict/ocr_bert_class_train
-#     time python train.py
+    echo "[train large bert]"
+    cd src/text_predict/ocr_bert_base
+    time python ocr_classifier.py
     cd -
     
+    echo "[get large bert features]"
+    cd src/text_predict/ocr_bert_base
+    time python extraction_features.py
+    mkdir -p /home/tione/notebook/dataset/text
+    cp features/* /home/tione/notebook/dataset/text/
+    cd -
+    
+    echo "[class train large bert]"
+    cd src/text_predict/ocr_bert_class_train
+    time python train.py
+    cd -
+    
+#     echo "[generate features for nextvlad]"
+#     python pre/cait_train_feature.py
+#     python pre/cait_val_feature.py
+#     python pre/cait_test_feature.py
+    
+    echo "[generate input files for x3d]"
+    # generate frames
+    python pre/train_frames.py
+    python pre/val_frames.py
+    # generate input transform tensors
+    python pre/train_transform.py
+    python pre/val_transform.py
+    
+    echo "[train x3d]"
+    # train x3d and nextvlad
+    python src/x3d.py
+    
+    echo "[train nextvlad]"
+    python src/nextvlad.py
+
+    echo "[get features(last hidden layer) of x3d]"
+    python src/x3d_train_feature.py
+    python src/x3d_val_feature.py
+    
+    echo "[get features(last hidden layer) of nextvlad]"
+    python src/nextvlad_train_feature.py
+    python src/nextvlad_val_feature.py
+    
+    echo "[train fusion nextvlad+x3d]"
+    python src/fusion_nv.py
+    
+    echo "[train fusion text+x3d]"
+    python src/fusion_tv.py
+  exit 0
+
+elif [ "$TYPE" = "train_plus" ]; then
+    echo "[train large bert]"
+    cd src/text_predict/ocr_bert_base
+    time python ocr_classifier.py
+    cd -
+    
+    echo "[get large bert features]"
+    cd src/text_predict/ocr_bert_base
+    time python extraction_features.py
+    mkdir -p /home/tione/notebook/dataset/text
+    cp features/* /home/tione/notebook/dataset/text/
+    cd -
+    
+    echo "[class train large bert]"
+    cd src/text_predict/ocr_bert_class_train
+    time python train.py
+    cd -
+    
+    echo "[generate features for nextvlad]"
+    python pre/cait_train_feature.py
+    python pre/cait_val_feature.py
+    python pre/cait_test_feature.py
+    
+    echo "[generate input files for x3d]"
+    # generate frames
+    python pre/train_frames.py
+    python pre/val_frames.py
+    # generate input transform tensors
+    python pre/train_transform.py
+    python pre/val_transform.py
+    
+    echo "[train x3d]"
+    # train x3d and nextvlad
+    python src/x3d.py
+    
+    echo "[train nextvlad]"
+    python src/nextvlad.py
+
+    echo "[get features(last hidden layer) of x3d]"
+    python src/x3d_train_feature.py
+    python src/x3d_val_feature.py
+    
+    echo "[get features(last hidden layer) of nextvlad]"
+    python src/nextvlad_train_feature.py
+    python src/nextvlad_val_feature.py
+    
+    echo "[train fusion nextvlad+x3d]"
+    python src/fusion_nv.py
+    
+    echo "[train fusion text+x3d]"
+    python src/fusion_tv.py
+  exit 0
+  
+elif [ "$TYPE" = "test" ]; then
+    echo "[generate test input files for x3d]"
+    python pre/test_frames.py
+    python pre/test_transform.py
+
+    echo "[get features(last hidden layer) of x3d]"
+    python src/x3d_test_feature.py
+    
+    echo "[get features(last hidden layer) of nextvlad]"
+    python src/nextvlad_test_feature.py
+    
+    echo "[get fusion val.json files]"
+    python src/fusion_nv_val.py
+    python src/fusion_tv_val.py
+    
+    echo "[get fusion test.json files]"
+    python src/fusion_nv_test.py
+    python src/fusion_tv_test.py
+    
+    echo "[weight fusion train]"
     cd src/weight_fusion
     time python train.py
     cd -
-  exit 0
-
-########## test
-elif [ "$TYPE" = "test" ]; then
-    cd src/text_predict/ocr_bert_class_train
-    time python predict.py
-    cd -
+    
+    echo "[weight fusion predict]"
     cd src/weight_fusion
     time python predict.py
     cd -
   exit 0
-# ######### text predict
 fi
+# ########## train
+# if [ "$TYPE" = "train" ]; then
+#     ### class train bert
+#     cd src/text_predict/ocr_bert_class_train
+#     time python train.py
+#     cd -
+#     ### weight fusion train
+#     cd src/weight_fusion
+#     time python train.py
+#     cd -
+#   exit 0
+
+# ########## test
+# elif [ "$TYPE" = "test" ]; then
+#     ### class train bert predict
+#     cd src/text_predict/ocr_bert_class_train
+#     time python predict.py
+#     cd -
+#     ### weight fusion predict
+#     cd src/weight_fusion
+#     time python predict.py
+#     cd -
+#   exit 0
+  
+# # ######### get featrue
+# elif [ "$TYPE" = "featrue" ]; then
+
+#   exit 0
+# fi

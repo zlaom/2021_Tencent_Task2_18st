@@ -23,6 +23,25 @@ DATASET_ROOT=/home/tione/notebook/algo-2021/dataset/
 
 `sudo chmod a+x ./init.sh && ./init.sh run`
 
-# 训练
-`sudo chmod a+x ./run.sh && ./run.sh`
-`sudo chmod a+x ./run2.sh && ./run2.sh`
+## 训练
+我们在网盘提供了nextvlad的自提特征，由于提特征需要很长时间，而且一站式代码并未实现并行处理，如果自己运行提特征可能需要单卡几天的时间。强烈推荐在网盘下载，将文件解压到/home/tione/notebook/dataset/ 文件夹下.
+
+```
+# 放置特征后目录如下
+dataset
+    - features
+        - train
+        - val
+        - test
+```
+
+下载路径为：http://vtrust.qicp.vip:45124/s/8g5RFBgTpsN7pEe
+
+请在根目录下运行如下代码
+`sudo chmod a+x ./run.sh && ./run.sh train`
+
+如果要运行完整的代码（包括nextvlad提特征），运行
+`sudo chmod a+x ./run.sh && ./run.sh train_plus`
+
+## 测试
+`sudo chmod a+x ./run.sh && ./run.sh test`
