@@ -258,9 +258,9 @@ config = {
 
 print('================== start weight fusion predict =================')
 
-x3d_nextvlad = 'dataset/x3d_nextvlad_test.json' #change
+x3d_nextvlad = '/home/tione/notebook/dataset/json/test_nextvlad_x3d.json' #change
 class_bert = '../text_predict/ocr_bert_class_train/result/test.json' # change
-x3d_bert = 'dataset/x3d_bert_test.json' #change
+x3d_bert = '/home/tione/notebook/dataset/json/test_text_x3d.json' #change
 
 x3d_nextvlad_and_class_bert = 'result/x3d_nextvlad_and_class_bert_test.json'
 

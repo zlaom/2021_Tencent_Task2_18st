@@ -1,4 +1,4 @@
-mkdir /home/tione/notebook/dataset
+mkdir -p /home/tione/notebook/dataset
 
 # generate features for nextvlad
 python pre/cait_train_feature.py
