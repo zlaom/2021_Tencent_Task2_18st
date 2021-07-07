@@ -5,30 +5,34 @@ import cv2
 import numpy as np
 from PIL import Image
 import torchvision.transforms as T
-# 注意安装 pip install timm
+import timm
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 # train/val
 mode = 'train'
-# 序号
-series = 6
 
 # 视频存放路径
-absolute_dir = '/home/tione/notebook/data/raw/video/train_5k'
+absolute_dir = '/home/tione/notebook/algo-2021/dataset/videos/video_5k/train_5k'
 # 特征保存路径
-save_dir = '/home/tione/notebook/data/features'
+save_dir = '/home/tione/notebook/dataset/features/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)  
 # 加载模型
 device_id = 'cuda:0'
 
 # baseline的datafile存放位置
-train_datafile = '/home/tione/notebook/datafile/baseline/train.txt'
-val_datafile = '/home/tione/notebook/datafile/baseline/val.txt'
+train_datafile = './utils/datafile/baseline/train.txt'
+val_datafile = './utils/datafile/baseline/val.txt'
 
 # label_id.txt文件位置
 label_id_file = './utils/label_id.txt'
 
 # 模型的位置
-ckpt = './checkpoint/cait_m48.pth'
+ppath = './pre/checkpoint/cait_m48.pth'
+if not os.path.exists(ppath):
+    model = timm.create_model('cait_m48_448', pretrained=True)
+    torch.save(model, './pre/checkpoint/cait_m48.pth')
+ckpt = './pre/checkpoint/cait_m48.pth'
 
 
 
@@ -84,8 +88,8 @@ def get_test_transforms(input_size):
 transform = get_test_transforms(448)
 
 pathfile = read_lines(train_datafile)
-train_path = pathfile[0::6][series*500:(series+1)*500]
-train_label = pathfile[4::6][series*500:(series+1)*500]
+train_path = pathfile[0::6]
+train_label = pathfile[4::6]
 
 pathfile = read_lines(val_datafile)
 val_path = pathfile[0::6]
@@ -174,5 +178,9 @@ for idx, (path, label) in enumerate(zip(paths, labels)):
     toc = time.time()
     print(idx, toc-tic)
     
+    
 # 保存datafile
-save_to_file('train.txt', datafile)
+datafile_save_dir = './utils/datafile/features'
+if not os.path.exists(datafile_save_dir):
+    os.makedirs(datafile_save_dir)   
+save_to_file(os.path.join(datafile_save_dir, mode+'.txt'), datafile)

@@ -14,20 +14,26 @@ mode = 'test'
 series = 0
 
 # 视频存放路径
-absolute_dir = '/home/tione/notebook/data/raw/video/test_5k_2nd'
+absolute_dir = '/home/tione/notebook/algo-2021/dataset/videos/test_5k_2nd'
 # 特征保存路径
-save_dir = '/home/tione/notebook/data/features'
+save_dir = '/home/tione/notebook/dataset/features/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)  
 # 加载模型
 device_id = 'cuda:0'
 
 # baseline的datafile存放位置
-test_datafile = '/home/tione/notebook/datafile/baseline/test.txt'
+test_datafile = './utils/datafile/baseline/test.txt'
 
 # label_id.txt文件位置
 label_id_file = './utils/label_id.txt'
 
 # 模型的位置
-ckpt = './checkpoint/cait_m48.pth'
+ppath = './pre/checkpoint/cait_m48.pth'
+if not os.path.exists(ppath):
+    model = timm.create_model('cait_m48_448', pretrained=True)
+    torch.save(model, './pre/checkpoint/cait_m48.pth')
+ckpt = './pre/checkpoint/cait_m48.pth'
 
 
 def read_lines(datafile):
@@ -81,7 +87,7 @@ def get_test_transforms(input_size):
 transform = get_test_transforms(448)
 
 pathfile = read_lines(test_datafile)
-test_path = pathfile[0::5][series*500:(series+1)*500]
+test_path = pathfile[0::5]
 
 
 device = torch.device(device_id) if torch.cuda.is_available() else torch.device('cpu'); print(device)
@@ -158,4 +164,7 @@ for idx, path in enumerate(paths):
     print(idx, toc-tic)
     
 # 保存datafile
-save_to_file(mode + '.txt', datafile)
+datafile_save_dir = './utils/datafile/features'
+if not os.path.exists(datafile_save_dir):
+    os.makedirs(datafile_save_dir)   
+save_to_file(os.path.join(datafile_save_dir, mode+'.txt'), datafile)

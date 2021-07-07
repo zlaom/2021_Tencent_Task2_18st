@@ -122,8 +122,8 @@ pip install pytorchvideo
 pip install -U cython
 python -m pip install -e ./utils/detectron2
 # pyslowfast
-export PYTHONPATH=/home/tione/notebook/algo-2021-jbtjjsw/SlowFast/slowfast:$PYTHONPATH
-cd ./utils/slowFast
+export PYTHONPATH=/home/tione/notebook/algo-2021-jbtjjsw/utils/SlowFast/slowfast:$PYTHONPATH
+cd ./utils/SlowFast
 python setup.py build develop
 cd -
 

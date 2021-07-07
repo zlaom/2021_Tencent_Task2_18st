@@ -16,8 +16,9 @@ import torchvision.transforms as T
 from src.models.nextvlad.nextvlad import VideoAudio 
 from utils.gap_score import get_tag_id_dict, parse_input_json, parse_gt_json, calculate_gap 
 
-use_ckpt = False
-ckpt = './checkpoint/dual_model/1_0.7424.pth'
+# ckpt = './checkpoint/m_eval_from_train/0_0.5879.pth'
+use_ckpt = True
+ckpt = './checkpoint/nextvlad.pth'
 name = 'nextvlad'
 device_id = 'cuda:0'
 
@@ -91,7 +92,7 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.video_path)
 
-# video path file
+# baseline datafile
 datafile_dir = './utils/datafile/baseline/'
 train_datafile = datafile_dir + 'train.txt'
 with open(train_datafile, 'r') as f:
@@ -114,129 +115,51 @@ with open(val_datafile, 'r') as f:
     
 
 # dataset
-train_dataset = Dataset(video_path_file=video_train, audio_path_file=audio_train, label_id_dic=label_id_dic, is_train=True)
+train_dataset = Dataset(video_path_file=video_train, audio_path_file=audio_train, label_id_dic=label_id_dic, is_train=False)
 val_dataset = Dataset(video_path_file=video_val, audio_path_file=audio_val, label_id_dic=label_id_dic, is_train=False)
 # dataloader
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False)
-
-
-
-@torch.no_grad()
-def evaluate(val_loader, model, epoch, device):
-    # 一些文件的位置
-    tag_id_file = './utils/label_id.txt'
-    gt_json = './utils/train5k.txt'    
-    
-    model.eval()
-    # 输出测试的.json文件
-    output = {}
-    for batch in tqdm(val_loader, ncols=20):
-        videos = batch['video'].to(device)
-        video_mask = batch['video_mask'].to(device)
-        audios = batch['audio'].to(device)
-        audio_mask = batch['audio_mask'].to(device)
-
-        # optimazation
-        preds = model(videos, audios, video_mask, audio_mask)
-        for i in range(preds.shape[0]):
-            # 计算分数及标签 + 排序
-            scores = torch.sigmoid(preds[i]) # 选取第i个，将数字转换为0-1
-            scores_sort = scores.sort(descending=True) # 对score排序
-            labels = [ id_label_dic[j.item()] for j in scores_sort.indices ] # 生成排序好的labels
-            scores = scores_sort.values # 排序好的scores
-
-            # 保存输出项目到output
-            one_output = {}
-            mp4_path = batch['video_path'][i]
-            output[mp4_path] = one_output
-            one_output["result"] = [{"labels": labels[:20], "scores": ["%.2f" % scores[i] for i in range(20)]}]        
-
-    # 输出.json测试文件
-    pred_json = name + '.json'
-    with open(pred_json, 'w', encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent = 4)
-
-    # 计算GAP
-    tag_dict = get_tag_id_dict(tag_id_file)
-    pred_dict = parse_input_json(pred_json, tag_dict)
-    gt_dict =  parse_gt_json(gt_json, tag_dict)
-
-    preds, labels = [], []
-    for k in pred_dict:
-        preds.append(pred_dict[k])
-        labels.append(gt_dict[k])
-    preds = np.stack(preds)
-    labels = np.stack(labels)
-    gap = calculate_gap(preds, labels, top_k=20)
-    print("The " + str(epoch + 1) + " epoch GAP result is {:.4f}".format(gap))
-    
-    os.remove(pred_json)
-    model.train()
-    
-    return gap
-
 
 # Training on cuda
 device = torch.device(device_id) if torch.cuda.is_available() else torch.device('cpu')
 print(device)
 
 # model
-model = VideoAudio(video_dim=768, audio_dim=128, video_max_frames=300, audio_max_frames=80, video_cluster=128, audio_cluster=32, video_lamb=8, audio_lamb=4, groups=8, classify=True)
+model = VideoAudio(video_dim=768, audio_dim=128, video_max_frames=300, audio_max_frames=80, video_cluster=128, audio_cluster=32, video_lamb=8, audio_lamb=4, groups=8, classify=False)
 if use_ckpt:
-    model.load_state_dict(torch.load(ckpt))
+    model.load_state_dict(torch.load(ckpt), strict=False)
 
 # 如果是多GPU，指定gpu
 # if torch.cuda.device_count() > 1:
 #     print("Let's use", torch.cuda.device_count(), "GPUs!")
 #     model = nn.DataParallel(model, device_ids=[0,1])
 model.to(device)
-model.train()
+model.eval()
 
 
-loss_fn = nn.BCEWithLogitsLoss()
-optimizer = AdamW(model.parameters(), lr=lr)
-if use_scheduler:
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
 
-count = 0
-max_gap = 0
-save_path = None
-for epoch in range(max_epoch):
-    for idx_b, batch in enumerate(train_loader):
+features = []
+
+dataloader = val_loader
+
+with torch.no_grad():
+    for batch in tqdm(dataloader, ncols=40):
         videos = batch['video'].to(device)
         video_mask = batch['video_mask'].to(device)
         audios = batch['audio'].to(device)
         audio_mask = batch['audio_mask'].to(device)
-        
-        labels = batch['labels'].to(device)
 
         # optimazation
-        preds = model(videos, audios, video_mask, audio_mask)
-        optimizer.zero_grad()
-        loss = loss_fn(preds, labels)
-        loss.backward()
-        optimizer.step()
-        
-        # log
-        print("Epoch:[{}|{}]\t Current:[{}|4500]\t Loss:[{}]".format(epoch, max_epoch,
-                                                                     (idx_b+1)*batch_size, loss.item()))
-        # scheduler        
-        if use_scheduler:
-            if idx_b % 3 == 0:
-                scheduler.step()
+        feature = model(videos, audios, video_mask, audio_mask)
+        features.append(feature.cpu())
 
-        # evaluate and save ckpt
-        if idx_b % 20 == 0:
-            gap = evaluate(val_loader, model, epoch, device)
-            if gap > max_gap:
-                max_gap = gap
-                if save_path:
-                    os.remove(save_path)
-                save_path = './checkpoint/' + "nextvlad.pth"
-                torch.save(model.state_dict(), save_path)
-                count = 0
-                
-    if count > 3:
-        break
-    count += 1
+    
+features = torch.cat(features)
+
+print(features.shape)
+save_dir = '/home/tione/notebook/dataset/nextvlad/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+np.save('/home/tione/notebook/dataset/nextvlad/val_features.npy', features)
+print('done')

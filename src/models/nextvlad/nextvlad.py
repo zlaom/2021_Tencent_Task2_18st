@@ -114,8 +114,10 @@ class NeXtVLAD(nn.Module):
 
     
 class VideoAudio(nn.Module):
-    def __init__(self, video_dim, audio_dim, video_max_frames, audio_max_frames, video_cluster, audio_cluster, video_lamb, audio_lamb, groups, n_class=82):
+    def __init__(self, video_dim, audio_dim, video_max_frames, audio_max_frames, video_cluster, audio_cluster, video_lamb, audio_lamb, groups, classify, n_class=82):
         super().__init__()
+        self.classify = classify
+        
         self.video_model = NeXtVLAD(feature_size=video_dim, max_frames=video_max_frames, nextvlad_cluster_size=video_cluster, lamb=video_lamb, groups=groups, is_classify=False)
         self.audio_model = NeXtVLAD(feature_size=audio_dim, max_frames=audio_max_frames, nextvlad_cluster_size=audio_cluster, lamb=audio_lamb, groups=groups, is_classify=False)
         
@@ -131,22 +133,6 @@ class VideoAudio(nn.Module):
         )
         
         reduce = 8
-#         self.se_all = nn.Sequential(
-#             nn.Linear(hidden_size, hidden_size//reduce),
-#             nn.BatchNorm1d(hidden_size//reduce),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(hidden_size//reduce, hidden_size),
-#             nn.BatchNorm1d(hidden_size),
-#             nn.Sigmoid()
-#         )
-        self.se_all = nn.Sequential(
-            nn.Linear(dim, dim//reduce),
-            nn.BatchNorm1d(dim//reduce),
-            nn.ReLU(inplace=True),
-            nn.Linear(dim//reduce, dim),
-#             nn.BatchNorm1d(dim),
-            nn.Sigmoid()
-        )
         self.se_video = nn.Sequential(
             nn.Linear(hidden_size, hidden_size//reduce),
             nn.BatchNorm1d(hidden_size//reduce),
@@ -179,9 +165,10 @@ class VideoAudio(nn.Module):
         audio_attention = self.se_audio(audio)
         video = video * audio_attention
         audio = audio * video_attention
-        cat = torch.cat([video, audio], 1)
+        out = torch.cat([video, audio], 1)
         
-        out = self.classifier(cat)
+        if self.classify == True:
+            out = self.classifier(out)
         
         return out
 

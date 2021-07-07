@@ -12,22 +12,21 @@ from tqdm import tqdm
 
 from PIL import Image
 import torchvision.transforms as T
+# from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 from config.cfg import loading_config
-from model.video_model_builder import X3D
+from src.models.x3d.video_model_builder import X3D
 from utils.gap_score import get_tag_id_dict, parse_input_json, parse_gt_json, calculate_gap 
 
-checkpoint = './checkpoint/scene/source/21_0.1586.pth'
-device_id = 'cuda:0'
-batch_size = 20
+checkpoint = './pretrain_models/x3d/x3d_m.pth'
+
+batch_size = 24
 lr = 1e-4
 max_epoch = 40
-
-# generate mask, 0 is masked; 1 is exists
-mask = torch.zeros(82)
-mask[0:23] = 1; mask[67] = 1
-
-
+save_dir = './checkpoint'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)  
+    
 # 创建labels--ids转换字典
 label_id_dic = {}
 with open("./utils/label_id.txt") as f:
@@ -40,19 +39,23 @@ with open("./utils/label_id.txt") as f:
 # 创建ids--labels转换字典，输出需要转换回来
 id_label_dic = {value: key for key, value in label_id_dic.items()}
 
-
+# read path file: 'train.txt'
+datafile_dir = './utils/datafile/transform/'
+train_datafile = datafile_dir + 'train.txt'
+with open(train_datafile, 'r') as f:
+    train_path_file = f.read().splitlines() # path_file是一个list
+# read path file: 'val.txt'
+val_datafile = datafile_dir + 'val.txt'
+with open(val_datafile, 'r') as f:
+    val_path_file = f.read().splitlines() # path_file是一个list
+    
 # Dataset, is_train用来在测试时返回.mp4文件名 
 class VideoDataset(torch.utils.data.Dataset):
-    def __init__(self, datafile, label_id_dic, mask, is_train):
-        
-        with open(datafile, 'r') as f:
-            path_file = f.read().splitlines() # path_file是一个list
+    def __init__(self, path_file, label_id_dic, is_train):
         self.video_path = path_file[0::3]
         self.labels = path_file[1::3]
-        
         self.label_id_dic = label_id_dic
         self.is_train = is_train
-        self.mask = mask == 1
 
     def __getitem__(self, idx):
         data = {}
@@ -72,20 +75,17 @@ class VideoDataset(torch.utils.data.Dataset):
         data['video'] = video[:, :, h_start:h_end, w_start:w_end]     
 
         ## ----------label to id-------------- 
-        labels = torch.tensor(eval(self.labels[idx])).float()
-        data['labels'] = labels[self.mask]
-        
+        data['labels'] = torch.tensor(eval(self.labels[idx])).float()
         
         ## ----------video .mp4 name------------
         if self.is_train == False:
             data['video_path'] = os.path.basename(self.video_path[idx]).split('.')[0] + '.mp4'
-            # data['video_path'] = os.path.basename(self.video_path[idx]).split('#')[0] + '.mp4'
             
         return data
 
     def __len__(self):
         return len(self.video_path)
-    
+
 # 自己定义的dataloader for train
 import random 
 def dataloader(dataset, batch_size):
@@ -109,44 +109,34 @@ def dataloader(dataset, batch_size):
 
             video = []
             labels = []
-            
-# datafile
-datafile_dir = '/home/tione/notebook/dataset/datafile/video/'
-train_datafile = datafile_dir + 'train.txt'
-val_datafile = datafile_dir + 'val.txt'
-
-
+                
 # dataset
-train_dataset = VideoDataset(train_datafile, label_id_dic, mask, is_train=True)
-val_dataset = VideoDataset(val_datafile, label_id_dic, mask, is_train=False)
+train_dataset = VideoDataset(path_file=train_path_file, label_id_dic=label_id_dic, is_train=True)
+val_dataset = VideoDataset(path_file=val_path_file, label_id_dic=label_id_dic, is_train=False)
 # dataloader
-# train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+# train_loader = dataloader(train_dataset, batch_size=batch_size)
+val_loader = DataLoader(val_dataset, batch_size=100, shuffle=False)
 
 
 @torch.no_grad()
-def evaluate(val_loader, model, epoch, mask, device):
+def evaluate(val_loader, model, epoch):
     # 一些文件的位置
     tag_id_file = './utils/label_id.txt'
     gt_json = './utils/train5k.txt'    
     
-    model.eval()
+    model.train()
     # 输出测试的.json文件
     output = {}
     for batch in tqdm(val_loader, ncols=20):
-        videos = batch['video'].to(device)
+        videos = batch['video'].cuda()
         preds = model(videos)
         for i in range(preds.shape[0]):
             # 计算分数及标签 + 排序
             scores = torch.sigmoid(preds[i]) # 选取第i个，将数字转换为0-1
-            
-            # 需要恢复成mask前的状态，其他位置默认预测为0
-            restore = torch.zeros(82).to(device)
-            restore[mask==1] = scores
-
-            scores_sort = restore.sort(descending=True) # 对score排序
+            scores_sort = scores.sort(descending=True) # 对score排序
             labels = [ id_label_dic[j.item()] for j in scores_sort.indices ] # 生成排序好的labels
             scores = scores_sort.values # 排序好的scores
+
             # 保存输出项目到output
             one_output = {}
             mp4_path = batch['video_path'][i]
@@ -179,18 +169,19 @@ def evaluate(val_loader, model, epoch, mask, device):
 
 
 # Training on cuda
-device = torch.device(device_id) if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(device)
 
-n_class = mask[mask==1].shape[0]
 cfg = loading_config('./config/X3D_M.yaml')
-model = X3D(cfg, n_class)
-model.load_state_dict(torch.load(checkpoint), strict=False)
+
+model = X3D(cfg, is_classify=True)
+    
+model.load_state_dict(torch.load(checkpoint))
 
 # 如果是多GPU，指定gpu
-# if torch.cuda.device_count() > 1:
-#     print("Let's use", torch.cuda.device_count(), "GPUs!")
-#     model = nn.DataParallel(model, device_ids=[0,1])
+if torch.cuda.device_count() > 1:
+    print("Let's use", torch.cuda.device_count(), "GPUs!")
+    model = nn.DataParallel(model, device_ids=[0,1])
 model.to(device)
 model.train()
 
@@ -198,12 +189,13 @@ loss_fn = nn.BCEWithLogitsLoss()
 optimizer = AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
 
-
+max_gap = 0
+save_path = None
+count = 0
 for epoch in range(max_epoch):
     train_loader = dataloader(train_dataset, batch_size=batch_size)
     for idx_b, (videos, labels) in enumerate(train_loader):
         videos = videos.to(device)
-        # labels
         labels = labels.to(device)
         
         # optimazation
@@ -218,9 +210,16 @@ for epoch in range(max_epoch):
         print("Epoch:[{}|{}]\t Current:[{}|4500]\t Loss:[{}]".format(epoch, max_epoch,
                                                                      (idx_b+1)*batch_size, loss.item()))
         
-        
-        if idx_b % 30 == 0:
-            gap = evaluate(val_loader, model, epoch, mask, device)
-            torch.save(model.state_dict(), "./checkpoint/scene/source/" 
-                           + str(epoch) +"_{:.4f}.pth".format(gap))       
-            print("checkpoint saved!")
+        if idx_b % 20 == 0:
+            gap = evaluate(val_loader, model, epoch)
+            if gap > max_gap:
+                max_gap = gap
+                if save_path:
+                    os.remove(save_path)
+                save_path = os.path.join(save_dir, 'x3d.pth')
+                torch.save(model.module.state_dict(), save_path)
+                count = 0
+
+    if count > 2:
+        break
+    count += 1

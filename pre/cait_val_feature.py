@@ -5,29 +5,37 @@ import cv2
 import numpy as np
 from PIL import Image
 import torchvision.transforms as T
-# 注意安装 pip install timm
+import timm
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
-# test
-mode = 'test'
+# train/val
+mode = 'val'
 # 序号
-series = 1
 
 # 视频存放路径
-absolute_dir = '/home/tione/notebook/data/raw/video/test_5k_2nd'
+absolute_dir = '/home/tione/notebook/algo-2021/dataset/videos/video_5k/train_5k'
 # 特征保存路径
-save_dir = '/home/tione/notebook/data/features'
+save_dir = '/home/tione/notebook/dataset/features/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)  
 # 加载模型
-device_id = 'cuda:1'
+device_id = 'cuda:0'
 
 # baseline的datafile存放位置
-test_datafile = '/home/tione/notebook/datafile/baseline/test.txt'
+train_datafile = './utils/datafile/baseline/train.txt'
+val_datafile = './utils/datafile/baseline/val.txt'
 
 # label_id.txt文件位置
 label_id_file = './utils/label_id.txt'
 
 # 模型的位置
-ckpt = './checkpoint/cait_m48.pth'
+ppath = './pre/checkpoint/cait_m48.pth'
+if not os.path.exists(ppath):
+    model = timm.create_model('cait_m48_448', pretrained=True)
+    torch.save(model, './pre/checkpoint/cait_m48.pth')
+ckpt = './pre/checkpoint/cait_m48.pth'
+
+
 
 
 def read_lines(datafile):
@@ -77,11 +85,18 @@ def get_test_transforms(input_size):
          T.Normalize(mean, std)])
     return transformations
 
-# create the data transform that cait expects
+# create the data transform that DeiT expects
 transform = get_test_transforms(448)
 
-pathfile = read_lines(test_datafile)
-test_path = pathfile[0::5][series*500:(series+1)*500]
+pathfile = read_lines(train_datafile)
+train_path = pathfile[0::6]
+train_label = pathfile[4::6]
+
+pathfile = read_lines(val_datafile)
+val_path = pathfile[0::6]
+val_label = pathfile[4::6]
+
+
 
 
 device = torch.device(device_id) if torch.cuda.is_available() else torch.device('cpu'); print(device)
@@ -89,17 +104,24 @@ model = torch.load(ckpt)
 model.to(device)
 model.eval()
 
-paths = test_path
-
+if mode == 'train':
+    paths = train_path
+    labels = train_label
+elif mode == 'val':
+    paths = val_path
+    labels = val_label
+    
+else: assert 0
 # 创建对应的文件夹
 save_path = os.path.join(save_dir, mode)
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 datafile = []
-for idx, path in enumerate(paths):
+for idx, (path, label) in enumerate(zip(paths, labels)):
     tic = time.time()
     
+    ids = label2id(label2id_dic, label) # label to id
     basename = get_basename(path) # basename，为了得到视频的名字
     video = os.path.join(absolute_dir, basename+'.mp4') # 由basename推出视频存放路径
     
@@ -151,11 +173,15 @@ for idx, path in enumerate(paths):
     
     # 保存datafile的内容
     datafile.append(save_path)
-    datafile.append('')
+    datafile.append(str(ids))
     datafile.append('')
     
     toc = time.time()
     print(idx, toc-tic)
+
     
 # 保存datafile
-save_to_file(mode + '.txt', datafile)
+datafile_save_dir = './utils/datafile/features'
+if not os.path.exists(datafile_save_dir):
+    os.makedirs(datafile_save_dir)   
+save_to_file(os.path.join(datafile_save_dir, mode+'.txt'), datafile)

@@ -102,4 +102,5 @@ ENV/
 
 # mkdocs documentation
 /site
-
+checkpoints/
+checkpoint/
